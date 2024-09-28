@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  restaurant-scrapping:
+    image: walymb/restaurant-scrapping:latest
+    #build:
+     # context: .
+      #dockerfile: Dockerfile
+    environment:
+      - START_INDEX=285
+      - END_INDEX=300
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=postgres
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5434:5432"
+

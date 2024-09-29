@@ -4,7 +4,7 @@ import psycopg2
 
 db_host = os.getenv("DB_HOST") or "localhost"
 db_port = os.getenv("DB_PORT") or "5433"
-db_name = os.getenv("DB_NAME") or "postgres"
+db_name = os.getenv("DB_NAME") or "all_bkp"
 
 def connect_db():
     """Estabelece uma conexão com o banco de dados PostgreSQL."""
@@ -109,7 +109,7 @@ def insert_restaurant(data):
 
                 cursor.execute(insert_query, values)
                 conn.commit()
-                print("Restaurante inserido com sucesso:", data['name'])
+                print("Restaurante inserido com sucesso:", data['nome'])
 
     except Exception as e:
         print("Erro ao inserir restaurante:", e)
@@ -151,16 +151,26 @@ def insert_index(index):
 
 
 def fetch_restaurant_data():
-
     try:
         with connect_db() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT * FROM restaurantes;")
-                data = cursor.fetchall()
+                rows = cursor.fetchall()
+
+                # Obter os nomes das colunas
+                col_names = [desc[0] for desc in cursor.description]
+
+                # Criar uma lista de dicionários
+                data = []
+                for row in rows:
+                    restaurant = dict(zip(col_names, row))
+                    data.append(restaurant)
+
                 return data
 
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
+
 
 
 

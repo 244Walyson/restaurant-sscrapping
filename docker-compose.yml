@@ -7,8 +7,8 @@ services:
      # context: .
       #dockerfile: Dockerfile
     environment:
-      - START_INDEX=285
-      - END_INDEX=300
+      - START_INDEX=421
+      - END_INDEX=1000
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=postgres

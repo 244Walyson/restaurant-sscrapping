@@ -1,8 +1,12 @@
+import ast
 import csv
+import json
 import os
 import re
 import time
+from itertools import islice
 
+import fake_useragent
 from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
@@ -14,16 +18,22 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from database import insert_restaurant, insert_error_log, insert_index, fetch_restaurant_data
 
-
+user_agent = fake_useragent.UserAgent
 
 # Function to set up Chrome options with a fake User-Agent
 def setup_driver():
     chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--headless")
+    #chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    user_agent = fake_useragent.UserAgent().random
+    chrome_options.add_argument(f"user-agent={user_agent}")
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    driver.set_window_size(1920, 1080)
+    driver.implicitly_wait(10)
+    driver.maximize_window()
+    driver.delete_all_cookies()
     return driver
 
 
@@ -98,7 +108,7 @@ def write_csv_file(data, csv_filename):
                 "Acessível a cadeiras de rodas", "Crianças", "Grupos Grandes", "Serviço de Garçom"
             ])
 
-        writer.writerow(data)
+        writer.writerow(data.values())
 
 
 
@@ -137,7 +147,7 @@ def get_restaurant_data(url):
         address = f"{address_parts[0]}, {address_parts[1]}"
         city = address_parts[2]
         state = address_parts[3]
-        country = address_parts[4]
+        country = address_parts[4] if len(address_parts) > 4 else "Sem Informação"
         postal_code = address_parts[5] if len(address_parts) > 5 else "Sem Informação"
 
         site = get_element_text_or_default(container, "div.website a", "Sem Informação")
@@ -274,10 +284,7 @@ def get_restaurant_data(url):
 def extract_and_load_data(urls):
     for index, url in enumerate(urls):
         print(index)
-        retries = 0
-        max_retries = 5
-        wait_time = 5
-        time.sleep(1)
+        time.sleep(2)
 
         data = get_restaurant_data(url)
         if data.__contains__("Restaurante fechado permanentemente"):
@@ -292,9 +299,10 @@ def extract_and_load_data(urls):
             while retries < 5:
                 print("retrying")
                 data = get_restaurant_data(url)
+                print(data)
                 if data.__contains__("Tempo de espera excedido"):
                     retries += 1
-                    time.sleep(wait_time)
+                    time.sleep(60)
                 else:
                     print(f"Max retries exceeded for {url}. wainting some minutes.")
                     time.sleep(60 * 5)
@@ -318,25 +326,61 @@ def extract_and_load_data(urls):
             continue
 
 
+def parse_restaurant_data(data_string):
+    # Remove as aspas extras e transforma em uma lista
+    data_list = ast.literal_eval(data_string)  # Converte a string para uma lista
+
+    # Converte cada string de dicionário para um dicionário
+    parsed_data = [ast.literal_eval(item) for item in data_list]
+
+    return parsed_data
+
+
 def copy_db_to_csv():
     data = fetch_restaurant_data()
     for row in data:
-        write_csv_file(row[1:], csv_filename)
+        row.pop("id")
         print(row)
+        write_csv_file(row, csv_filename)
 
 
-csv_filename_reader = "restaurantes(1).csv"
+
+
+def fetch_and_save_as_json():
+    data = fetch_restaurant_data()  # Supondo que isso retorna uma lista de dicionários
+    with open("etc/restaurants.json", mode='a', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)  # Grava os dados no formato JSON
+
+    print("Dados salvos como JSON com sucesso.")
+
+
+# Chame a função
+#fetch_and_save_as_json()
+
+def load_and_insert_restaurants():
+    with open("etc/restaurants.json", mode='r', encoding='utf-8') as file:
+        restaurants = json.load(file)
+
+    for restaurant in restaurants:
+        restaurant.pop("id", None)
+        insert_restaurant(restaurant)
+
+# Chame a função
+#load_and_insert_restaurants()
+
+
+csv_filename_reader = "etc/restaurantes(1).csv"
 links_restaurantes = ler_links_do_csv(csv_filename_reader)
 
-start_index = int(os.getenv("START_INDEX", 286))
-end_index = int(os.getenv("END_INDEX", 310))
+start_index = int(os.getenv("START_INDEX", 421))
+end_index = int(os.getenv("END_INDEX", 1000))
 
 print(f"Start index: {start_index} - End index: {end_index}")
 
 restaurant_urls = links_restaurantes[start_index:end_index]
-print(restaurant_urls)
+#print(restaurant_urls)
 
-csv_filename = "restaurant_detailed_data.csv"
+csv_filename = "etc/restaurant_detailed_data(1).csv"
 
-extract_and_load_data(restaurant_urls)
-# copy_db_to_csv()
+#extract_and_load_data(restaurant_urls)
+copy_db_to_csv()

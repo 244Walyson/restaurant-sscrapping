@@ -26,7 +26,7 @@ def scroll_to_load_more(max_scrolls=3):
         last_height = new_height
         scroll_count += 1
 
-csv_filename = "restaurantes(1).csv"
+csv_filename = "etc/restaurantes(1).csv"
 
 try:
     # Realiza o scroll para carregar mais restaurantes
